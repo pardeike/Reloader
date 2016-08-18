@@ -46,7 +46,7 @@ You can basically keep your work style. All you need to do is to open two projec
 The second project will be the patch project. The idea here is that you, in your main project, develop and deploy, then start RimWorld and test. Once you want to change something without restarting RimWorld, you copy the class (or part of it) from your main project to the patch project. There, you annotate the methods that you want to change with the Attribute: 
 
 ```
-[ReloadMethod("Namespace.ClassName", "MethodName")]
+[ReloadMethod]
 public void SomeMethod()
 ```
 
@@ -62,7 +62,7 @@ Once you are satisfied with your changes or you have hit some change that requir
 
 ###### TODO
 
-This is the very first version. I think it does not support the difference between instance/static methods, internal methods and the lookup code does not use the Type[] attribute parameter yet.
+Patching methods has a few pitfalls. For now, you cannot patch constructors and if you have a class A with a method you patch and a class B that instantiates class A you will not see the patch happen. What you need to do is to copy class B into your patch too and patch the method (without code change) that instantiates class A. This is because in your patch, class A is actually class A' (so A is not A sort of) and thus class B in the original code will instantiate the old class A. It's not a big deal if you copy all your code from your original mod to the patch and just annotate those things to get you what you want.
 
 I tried to get real AppDomain load/unloading to work but failed because if you do so, all communication with the second AppDomain has to be serializable and that means that a lot of method parameters and return types would could not be supported. It's simply too much hassle. Instead, Reloader simply loads more and more dlls into memory and uses Detours to point the original method to method1, method2, etc until you run out of memory.
 

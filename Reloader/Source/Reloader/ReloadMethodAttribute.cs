@@ -22,40 +22,69 @@ namespace Reloader
 	 * create a new project, add a new file Class1.cs that has a copy of
 	 * the method/class you want to work with and looks like this:
 	 * 
-	 * namespace Whatever
+	 * namespace FooBar
+	 * {
+	 *		public class FooClass
+	 *		{
+	 *			[ReloadMethod]
+	 *			public string[] GetStrings(int count)
+	 *			{
+	 *				...
+	 *			}
+	 *		}
+	 * }
+	 * 
+	 * The attribute supports changes to the namespace, the class and the method
+	 * so you can also write:
+	 * 
+	 * namespace FooBar
+	 * {
+	 *		public class FooClass
+	 *		{
+	 *			[ReloadMethod(null, null, "GetStrings")]
+	 *			public string[] Whatever(int count)
+	 *			{
+	 *				...
+	 *			}
+	 *		}
+	 * }
+	 * 
+	 * or:
+	 * 
+	 * namespace Whatever1
 	 * {
 	 *		public class Blah
 	 *		{
-	 *			[ReloadMethod("FooBar.FooClass", "GetStrings")]
-	 *			public string[] GetStrings(int count)
+	 *			[ReloadMethod("FooBar", "FooClass", "GetStrings")]
+	 *			public string[] Whatever2(int count)
 	 *			{
-	 *				... fixes ...
+	 *				...
 	 *			}
 	 *		}
 	 * }
 	 * 
 	 * Then you create a new directory at the same level as the Assemblies 
 	 * directory in your Mod folder inside RimWorld and name it 
-	 * Assemblies.reloading and then you compile your little patch project 
+	 * Assemblies.reloading and you compile your little patch project 
 	 * into an dll into that directory.
 	 * 
 	 * You need to have the Reloader Mod installed before you create that
 	 * new directory and you can reference Reloader.dll in your patch 
 	 * project to get the ReloadMethod attribute.
-	 * 
 	 */
+
 	[AttributeUsage(AttributeTargets.Method)]
 	public class ReloadMethod : Attribute
 	{
+		public string namespaceName;
 		public string className;
 		public string methodName;
-		public Type[] argumentTypes;
 
-		public ReloadMethod(string className, string methodName, Type[] argumentTypes = null)
+		public ReloadMethod(string namespaceName = null, string className = null, string methodName = null)
 		{
+			this.namespaceName = namespaceName;
 			this.className = className;
 			this.methodName = methodName;
-			this.argumentTypes = argumentTypes;
 		}
 	}
 }
