@@ -1,72 +1,40 @@
 ## RimWorld Reloader 
-A mod for **RimWorld** that allows you to develop and patch code while the game is running
+A mod add-on for **RimWorld** that allows you to develop and patch code while the game is running
 
-**Reloader** is a mod for developers. It was created with the frustration in mind that comes up if things don't work your way and you end up restarting RimWorld too many times.
+**Reloader** is a dll for developers. It was created with the frustration in mind that comes up if things don't work your way and you end up restarting RimWorld too many times.
 
 So what do you need to do to get hot code reloading? The following steps are necessary to get started:
 
-##### 1) Clone/Download this repo
+##### 1) Clone/download this repo
 
-You will get three directories that contain
+You can look at the source code but ultimately, you only need the file **0reloader.dll**
 
-- **Reloader**, the mod
-- **TestMod**, a very simple mod, ready to be patched
-- **Patch**, a patch for TestMod
+###### Your mods directory
 
-###### Mods Directory
+**Reloader** works its magic when you put the 0reloader.dll into the same **Assemblies** folder as your own dll. You can either copy it in there and reference it from your project or you have it somewhere else and let the project copy it over to the Assemblies folder. It doesn't matter which way you choose.
 
-**Reloader** is a complete mod, ready to be place into RimWorld. It has no side effects when installed and as long as you don't deploy patch files, it will not do anything or affect RimWorld in any way.
-
-Its job is to watch the Mods directory, searching for changes in any of the sub-directories named "Assemblies.reloading". So a typical mod structure might look like:
-
-```  
-Mods
-+- Core
-+- Reloader
-   +- About
-   +- Assemblies
-      +- Reloader.dll
-+- FooBarMod
-   +- About
-   +- Assemblies
-      +- FooBar.dll
-+- TestMod
-   +- About
-   +- Assemblies
-      +- TestMod.dll
-   +- Assemblies.reloading    <- create this directory
-      +- Patch1.dll           <- deploy here
-```
-For now, it looks like patches will patch only the corresponding mod but that is not true. Since you define inside the patch which class you want to patch you can possibly patch anything in RimWorld in realtime. The directories are mostly grouped by mod because it is conenient to do so.
+Its job is to watch the Assemblies directory and search for changes in any of the dlls. When it detects that a dll has changed (time stamp AND dll version number must be different) it loads the dll in and patches the original method with its new copy.
 
 ###### IDE Setup
 
-You can basically keep your work style. All you need to do is to open two projects or have two projects in a solution. The first project is the main one and it will deploy into the Assemblies directory as usual. You don't have to change anything in your own mod project at all!
-
-The second project will be the patch project. The idea here is that you, in your main project, develop and deploy, then start RimWorld and test. Once you want to change something without restarting RimWorld, you copy the class (or part of it) from your main project to the patch project. There, you annotate the methods that you want to change with the Attribute: 
+To allow Reloader change your methods, you annotate the methods that you want to change with the Attribute *ReloadMethod*: 
 
 ```
 [ReloadMethod]
 public void SomeMethod()
 ```
 
-To do this, you need to import a **reference to the Reloader.dll** into the patch project. Make sure it is set to not copy while deploying.
+To do this, you need to import a **reference to the Reloader.dll** into the patch project. Not for any functionality, but only for the attribute.
 
-You can only annotate methods and you specify the full classname of the method you want to change as the first parameter. The second parameter is the method name. Currently, the attribute can take a third parameter Type[] to further specify the method but this is not supported in Reloader yet.
+**Important:** Before you go and deploy the patch project, you need one last step. .NET will not load a dll if it has the same version number as a earlier dll it has loaded. So unless you increment your version every time you deploy you won't see any changes. So I recommend strongly to automate this in the patch project by using an extension (For VS2016, I like "Build Version Increment Add-in") or by following the steps in this Gist: https://gist.github.com/pardeike/c36c4007b2855bc85950b59ade935bac
 
-**Important:** Before you go and deploy the patch project, you need one last step. .NET will not load a dll if it has the same version number as a earlier dll it has loaded. So unless you increment your version every time you deploy you won't see any changes. So I recommend strongly to automate this in the patch project by using an extension (For VS2016, I like "Build Version Increment Add-in").
+Once you rebuild your mod (I recommend building right inside the Mods directory), Reloader will pick up the changes and patch the designated method in the running mod and you will see the effect immediately. You can even edit methods without loosing their state.
 
-Now you deploy this project into the Assemblies.reloading directory, Reloader will pick it up and patch the designated method in the running mod and you will see the effect immediately. If you copy a whole class you can even patch methods within it without loosing state.
-
-Once you are satisfied with your changes or you have hit some change that requires substantial changes in the code, you copy over the code changes to your main project and take it from there as usual.
+Once you are satisfied with your changes just remove the Reloader.dll, the reference to it and the method attributes. You should **NOT** ship any final mod with Reloader still in it!
 
 ###### TODO
 
-Patching methods has a few pitfalls. For now, you cannot patch constructors and if you have a class A with a method you patch and a class B that instantiates class A you will not see the patch happen. What you need to do is to copy class B into your patch too and patch the method (without code change) that instantiates class A. This is because in your patch, class A is actually class A' (so A is not A sort of) and thus class B in the original code will instantiate the old class A. It's not a big deal if you copy all your code from your original mod to the patch and just annotate those things to get you what you want.
-
 I tried to get real AppDomain load/unloading to work but failed because if you do so, all communication with the second AppDomain has to be serializable and that means that a lot of method parameters and return types would could not be supported. It's simply too much hassle. Instead, Reloader simply loads more and more dlls into memory and uses Detours to point the original method to method1, method2, etc until you run out of memory.
-
-A second way to designate methods would be to even use annotations in your main code. By having an annotation with a unique id you would simply use that in your patch to designate the method to patch. Easier, but with the disadvantage of having to manipulate the main project and also the hassle to come up with unique ids for every method you want to replace. Not really useful but nevertheless a thought.
 
 ---
 
@@ -80,12 +48,14 @@ If you feel that you want to contribute, please go ahead and send me pull reques
 
 Free. As in free beer. Copy, learn and be respectful.
 
+If you like what I do, please consider becoming a supporter at:
+https://www.patreon.com/bePatron?c=937205
+
 ---
 
 ##### Contact
 
-Andreas Pardeike  
-Email: andreas@pardeike.net  
-Steam: pardeike  
-Twitter: @pardeike  
-Cell: +46722120680
+Andreas Pardeike
+Email: andreas@pardeike.net
+Steam: pardeike
+Twitter: @pardeike
