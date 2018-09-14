@@ -4,6 +4,7 @@ using System.IO;
 using System.Reflection;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace Reloader
 {
@@ -15,6 +16,7 @@ namespace Reloader
 
 	class Reloader : Mod
 	{
+
 		Dictionary<string, MethodInfo> reloadableMethods = new Dictionary<string, MethodInfo>();
 		ModContentPack content;
 
@@ -48,7 +50,8 @@ namespace Reloader
 
 		void CacheExstingMethods()
 		{
-			AppDomain.CurrentDomain.GetAssemblies()
+
+            AppDomain.CurrentDomain.GetAssemblies()
 				.Where(assembly =>
 				{
 					var name = assembly.FullName;
@@ -68,8 +71,14 @@ namespace Reloader
 								ReloadMethod attr;
 								if (method.TryGetAttribute(out attr))
 								{
-									var key = method.DeclaringType.FullName + "." + method.Name;
-									reloadableMethods[key] = method;
+
+                                    var key = method.DeclaringType.FullName + "." + method.Name;
+								    if (method.IsGenericMethodDefinition)
+								    {
+								        Log.Error($"Reloader: Cannot reload generic method definition {key} - skipping");
+								        return;
+								    }
+                                    reloadableMethods[key] = method;
 									var methodType = method.DeclaringType;
 									Log.Warning("Reloader: found reloadable method " + key);
 								}
@@ -80,14 +89,15 @@ namespace Reloader
 
 		void LoadPath(string path)
 		{
-			var assembly = Assembly.Load(File.ReadAllBytes(path));
+
+            var assembly = Assembly.Load(File.ReadAllBytes(path));
 			assembly.GetTypes().ToList()
 				.ForEach(type => type.GetMethods(allBindings)
 					.ToList()
 					.ForEach(newMethod =>
 					{
 						ReloadMethod attr;
-						if (newMethod.TryGetAttribute(out attr))
+						if (newMethod.TryGetAttribute(out attr) && !newMethod.IsGenericMethodDefinition)
 						{
 							var key = newMethod.DeclaringType.FullName + "." + newMethod.Name;
 							Log.Warning("Reloader: patching " + key);
@@ -95,8 +105,18 @@ namespace Reloader
 							var originalMethod = reloadableMethods[key];
 							if (originalMethod != null)
 							{
-								var originalCodeStart = Memory.GetMethodStart(originalMethod);
-								var newCodeStart = Memory.GetMethodStart(newMethod);
+								var originalCodeStart = Memory.GetMethodStart(originalMethod, out Exception ex1);
+							    if (ex1 != null) {
+							        Log.Warning($"Reloader: exception getting original method: {ex1.Message}");
+							        return;
+							    }
+
+							    var newCodeStart = Memory.GetMethodStart(newMethod, out Exception ex2);
+							    if (ex2 != null)
+							    {
+							        Log.Warning($"Reloader: exception getting new method: {ex2.Message}");
+							        return;
+							    }
 								Memory.WriteJump(originalCodeStart, newCodeStart);
 							}
 							else
